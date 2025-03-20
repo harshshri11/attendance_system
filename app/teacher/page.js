@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import BackButton from '../components/BackButton';
+import { API_URLS } from '@/constants';
 
 function TeacherDashboard() {
     const [students, setStudents] = useState([]);
@@ -15,40 +16,22 @@ function TeacherDashboard() {
     const fetchStudents = async (date) => {
         try {
             setLoading(true);
-
-            // Fetch student data first
-            const response = await fetch(process.env.GETALLSTUDENTS);
+            const response = await fetch(API_URLS.GET);
             if (!response.ok) {
                 throw new Error("Failed to fetch students");
             }
             const data = await response.json();
 
-            if (Array.isArray(data.data)) {
-                const formattedData = data.data.map(student => ({
+            if (Array.isArray(data)) {
+                const formattedData = data.map(student => ({
                     studentId: student.studentId || "N/A",
-                    isPresent: student.present === "Present",
                     studentName: student.name || "Unknown",
                     parentName: student.parentsName || "N/A",
-                    parentContact: student.parentsContact || "N/A"
+                    parentContact: student.parentsContact || "N/A",
+                    isPresent: student.present === "Present",
+                    timestamp: student.present === "Present" ? new Date().toLocaleString() : null
                 }));
-
-                // Get the current date in YYYY-MM-DD format
-                const today = new Date().toISOString().split("T")[0];
-
-                // Send attendance data to API
-                const postResponse = await fetch("/api/attendance", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ date: today, students: formattedData }),
-                });
-
-                const result = await postResponse.json();
-
-                if (!postResponse.ok) {
-                    throw new Error(result.error || "Failed to submit attendance");
-                }
-                setStudents(students)
-                alert("Attendance submitted successfully!");
+                setStudents(formattedData);
             } else {
                 throw new Error("Received data is not an array");
             }
@@ -56,6 +39,31 @@ function TeacherDashboard() {
             setError(err.message);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const markPresent = (index) => {
+        const updatedStudents = [...students];
+        updatedStudents[index].isPresent = true;
+        updatedStudents[index].timestamp = new Date().toLocaleString();
+        setStudents(updatedStudents);
+    };
+
+    const resetAttendance = async () => {
+        try {
+            const response = await fetch("https://script.google.com/macros/s/AKfycbxGQ-g1FhIX2fQrLYtx0RJPL3bsrv0Q2CzsARWB6XGTJKNd3JQTuXLvL2un7Vq1Ci9J/exec?markAllAbsent=true");
+            if (!response.ok) {
+                throw new Error("Failed to reset attendance");
+            }
+            
+            const updatedStudents = students.map(student => ({
+                ...student,
+                isPresent: false,
+                timestamp: null
+            }));
+            setStudents(updatedStudents);
+        } catch (err) {
+            setError(err.message);
         }
     };
 
@@ -77,6 +85,12 @@ function TeacherDashboard() {
                 </div>
             </div>
 
+            <button 
+                onClick={resetAttendance} 
+                className="mb-4 bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-700 transition">
+                Reset Attendance
+            </button>
+
             <div className="w-full max-w-4xl bg-white p-6 rounded-xl shadow-lg">
                 <h3 className="text-lg font-semibold mb-4">Class Attendance for {selectedDate}</h3>
                 {loading && <p>Loading students...</p>}
@@ -85,11 +99,12 @@ function TeacherDashboard() {
                     <table className="w-full table-fixed border-collapse">
                         <thead>
                             <tr className="bg-gray-200 text-left">
-                                <th className="p-3 w-1/5">ID</th>
-                                <th className="p-3 w-1/5">Name</th>
-                                <th className="p-3 w-1/5">Parent</th>
-                                <th className="p-3 w-1/5">Contact</th>
-                                <th className="p-3 w-1/5">Status</th>
+                                <th className="p-3 w-1/6">ID</th>
+                                <th className="p-3 w-1/6">Name</th>
+                                <th className="p-3 w-1/6">Parent</th>
+                                <th className="p-3 w-1/6">Contact</th>
+                                <th className="p-3 w-1/6">Status</th>
+                                <th className="p-3 w-1/6">Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -101,13 +116,22 @@ function TeacherDashboard() {
                                         <td className="p-3">{student.parentName}</td>
                                         <td className="p-3">{student.parentContact}</td>
                                         <td className={`p-3 font-semibold ${student.isPresent ? "text-green-600" : "text-red-600"}`}>
-                                            {student.isPresent ? "Present" : "Absent"}
+                                            {student.isPresent ? `Present (${student.timestamp})` : "Absent"}
+                                        </td>
+                                        <td className="p-3">
+                                            {!student.isPresent && (
+                                                <button 
+                                                    onClick={() => markPresent(index)}
+                                                    className="bg-green-500 text-white px-3 py-1 rounded-md hover:bg-green-700 transition">
+                                                    Mark Present
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="5" className="text-center py-4">No attendance records for this date</td>
+                                    <td colSpan="6" className="text-center py-4">No attendance records for this date</td>
                                 </tr>
                             )}
                         </tbody>

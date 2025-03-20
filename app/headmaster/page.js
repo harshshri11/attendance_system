@@ -1,21 +1,78 @@
-'use client'
-import { useState } from "react";
+'use client';
+import { useState, useEffect } from "react";
 import BackButton from "../components/BackButton";
-
+import { API_URLS } from "@/constants";
 function HeadmasterLogin() {
     const [students, setStudents] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [form, setForm] = useState({ studentId: "", studentName: "", parentName: "", parentContact: "" });
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    useEffect(() => {
+        fetchStudents();
+    }, []);
+
+    const fetchStudents = async () => {
+        try {
+            setLoading(true);
+            const response = await fetch(API_URLS.GET);
+            if (!response.ok) {
+                throw new Error("Failed to fetch students");
+            }
+            const data = await response.json();
+            console.log(data);
+            if (Array.isArray(data)) {
+                const formattedData = data.map(student => ({
+                    studentId: student.studentId || "N/A",
+                    studentName: student.name || "Unknown",
+                    parentName: student.parentsName || "N/A",
+                    parentContact: student.parentsContact || "N/A"
+                }));
+                setStudents(formattedData);
+            } else {
+                throw new Error("Received data is not an array");
+            }
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleChange = (e) => {
         setForm({ ...form, [e.target.name]: e.target.value });
     };
 
-    const handleAddStudent = () => {
+    const handleAddStudent = async () => {
         if (form.studentId && form.studentName && form.parentName && form.parentContact) {
-            setStudents([...students, form]);
-            setForm({ studentId: "", studentName: "", parentName: "", parentContact: "" });
-            setIsModalOpen(false);
+            console.log(form.studentId , form.studentName , form.parentName , form.parentContact)
+            try {
+                const response = await fetch(API_URLS.POST, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        studentId: form.studentId,
+                        name: form.studentName,
+                        parentName: form.parentName,
+                        parentContact: form.parentContact
+                    }),
+                });
+
+                const result = await response.json();
+                console.log(result)
+                if (result.status === "success") {
+                    setIsModalOpen(false);
+                    fetchStudents();
+                    setForm({ studentId: "", studentName: "", parentName: "", parentContact: "" });
+                } else {
+                    alert("Failed to add student: " + result.message);
+                }
+            } catch (error) {
+                alert("Error adding student: " + error.message);
+            }
         }
     };
 
@@ -30,29 +87,33 @@ function HeadmasterLogin() {
                         Add New Admission
                     </button>
                 </div>
-                <table className="bg-white rounded-xl shadow-lg w-full">
-                    <thead>
-                        <tr className="bg-gray-200">
-                            <th className="p-2">ID</th>
-                            <th className="p-2">Name</th>
-                            <th className="p-2">Parent</th>
-                            <th className="p-2">Contact</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {students.map((student, index) => (
-                            <tr key={index} className="border-t">
-                                <td className="p-2">{student.studentId}</td>
-                                <td className="p-2">{student.studentName}</td>
-                                <td className="p-2">{student.parentName}</td>
-                                <td className="p-2">{student.parentContact}</td>
+                {loading && <p>Loading students...</p>}
+                {error && <p className="text-red-500">{error}</p>}
+                {!loading && !error && (
+                    <table className="bg-white rounded-xl shadow-lg w-full">
+                        <thead>
+                            <tr className="bg-gray-200">
+                                <th className="p-2">ID</th>
+                                <th className="p-2">Name</th>
+                                <th className="p-2">Parent</th>
+                                <th className="p-2">Contact</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {students.map((student, index) => (
+                                <tr key={index} className="border-t">
+                                    <td className="p-2">{student.studentId}</td>
+                                    <td className="p-2">{student.studentName}</td>
+                                    <td className="p-2">{student.parentName}</td>
+                                    <td className="p-2">{student.parentContact}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
             </div>
             {isModalOpen && (
-                <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50">
+                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
                     <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-md">
                         <h3 className="text-lg font-semibold mb-4">Add New Student</h3>
                         <input className="w-full p-2 border rounded mb-2" name="studentId" placeholder="Student ID" value={form.studentId} onChange={handleChange} />
