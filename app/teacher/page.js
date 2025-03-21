@@ -10,42 +10,45 @@ function TeacherDashboard() {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
     useEffect(() => {
+        console.log("url", API_URLS.POST);
         fetchStudents(selectedDate);
+
     }, [selectedDate]);
 
     const fetchStudents = async (date) => {
-    try {
-        setLoading(true);
-        setError(null);  // Clear any previous errors
-        const response = await fetch(`${API_URLS.GET}?date=${date}`);
+        try {
+            setLoading(true);
+            setError(null);  // Clear any previous errors
+            const response = await fetch(`${API_URLS.GET}?date=${date}`);
 
-        if (!response.ok) {
-            throw new Error("Failed to fetch students");
+            if (!response.ok) {
+                throw new Error("Failed to fetch students");
+            }
+
+            const data = await response.json();
+            console.log(data.data);
+
+            if (!Array.isArray(data.data) || data.data.some(student => typeof student !== 'object')) {
+                throw new Error("Received invalid student data");
+            }
+
+            const formattedData = data.data.map(student => ({
+                studentId: student.studentId || "N/A",
+                studentName: student.name || "Unknown",
+                parentName: student.parentsName || "N/A",
+                parentContact: student.parentsContact || "N/A",
+                isPresent: student.attendance?.toLowerCase() === "present",
+                timestamp: student.attendance?.toLowerCase() === "present" ? new Date().toLocaleString() : null
+            }));
+
+            setStudents(formattedData);
+        } catch (err) {
+            setStudents([]);  // Clear stale data
+            setError(err.message);
+        } finally {
+            setLoading(false);
         }
-
-        const data = await response.json();
-
-        if (!Array.isArray(data) || data.some(student => typeof student !== 'object')) {
-            throw new Error("Received invalid student data");
-        }
-
-        const formattedData = data.map(student => ({
-            studentId: student.studentId || "N/A",
-            studentName: student.name || "Unknown",
-            parentName: student.parentsName || "N/A",
-            parentContact: student.parentsContact || "N/A",
-            isPresent: student.present?.toLowerCase() === "present",
-            timestamp: student.present?.toLowerCase() === "present" ? new Date().toLocaleString() : null
-        }));
-
-        setStudents(formattedData);
-    } catch (err) {
-        setStudents([]);  // Clear stale data
-        setError(err.message);
-    } finally {
-        setLoading(false);
-    }
-};
+    };
 
     const markPresent = async (index) => {
         const updatedStudents = [...students];
@@ -53,21 +56,25 @@ function TeacherDashboard() {
         updatedStudents[index].timestamp = new Date().toLocaleString();
         setStudents(updatedStudents);
         try {
-            const response = await fetch(API_URLS.POST_ATTENDANCE, {
+            const response = await fetch(API_URLS.POST, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
+                mode:"no-cors",
                 body: JSON.stringify({
                     studentId: updatedStudents[index].studentId,
                     attendanceStatus: 'Present'
                 })
             });
+            
+            console.log(response);
             if (!response.ok) {
                 throw new Error("Failed to mark attendance on server");
             }
         } catch (err) {
-            setError(err.message);
+            
+            console.log(err.message);
         }
      };
 
@@ -138,22 +145,21 @@ function TeacherDashboard() {
                                         <td className="p-3">{student.studentName}</td>
                                         <td className="p-3">{student.parentName}</td>
                                         <td className="p-3">
-    {student.parentContact ? (
-        <a 
-            href={`https://wa.me/${String(student.parentContact).replace(/\D/g, '')}`} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-blue-600 underline hover:text-blue-800"
-        >
-            {String(student.parentContact)}
-        </a>
-    ) : (
-        "N/A"
-    )}
-</td>
-
+                                                {student.parentContact ? (
+                                                    <a 
+                                                        href={`https://wa.me/${String(student.parentContact).replace(/\D/g, '')}`} 
+                                                        target="_blank" 
+                                                        rel="noopener noreferrer"
+                                                        className="text-blue-600 underline hover:text-blue-800"
+                                                    >
+                                                        {String(student.parentContact)}
+                                                    </a>
+                                                ) : (
+                                                    "N/A"
+                                                )}
+                                        </td>
                                         <td className={`p-3 font-semibold ${student.isPresent ? "text-green-600" : "text-red-600"}`}>
-                                            {student.isPresent ? `Present (${student.timestamp})` : "Absent"}
+                                            {student.isPresent ? `Present ${student.timestamp}` : "Absent"}
                                         </td>
                                         <td className="p-3">
                                             {!student.isPresent && (
