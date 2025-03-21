@@ -51,8 +51,10 @@ function HeadmasterLogin() {
                 const response = await fetch(API_URLS.POST, {
                     method: "POST",
                     headers: {
+
                         "Content-Type": "application/json",
                     },
+                    mode:"no-cors",
                     body: JSON.stringify({
                         studentId: form.studentId,
                         name: form.studentName,

@@ -14,44 +14,67 @@ function TeacherDashboard() {
     }, [selectedDate]);
 
     const fetchStudents = async (date) => {
-        try {
-            setLoading(true);
-            const response = await fetch(API_URLS.GET);
-            if (!response.ok) {
-                throw new Error("Failed to fetch students");
-            }
-            const data = await response.json();
+    try {
+        setLoading(true);
+        setError(null);  // Clear any previous errors
+        const response = await fetch(`${API_URLS.GET}?date=${date}`);
 
-            if (Array.isArray(data)) {
-                const formattedData = data.map(student => ({
-                    studentId: student.studentId || "N/A",
-                    studentName: student.name || "Unknown",
-                    parentName: student.parentsName || "N/A",
-                    parentContact: student.parentsContact || "N/A",
-                    isPresent: student.present === "Present",
-                    timestamp: student.present === "Present" ? new Date().toLocaleString() : null
-                }));
-                setStudents(formattedData);
-            } else {
-                throw new Error("Received data is not an array");
-            }
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
+        if (!response.ok) {
+            throw new Error("Failed to fetch students");
         }
-    };
 
-    const markPresent = (index) => {
+        const data = await response.json();
+
+        if (!Array.isArray(data) || data.some(student => typeof student !== 'object')) {
+            throw new Error("Received invalid student data");
+        }
+
+        const formattedData = data.map(student => ({
+            studentId: student.studentId || "N/A",
+            studentName: student.name || "Unknown",
+            parentName: student.parentsName || "N/A",
+            parentContact: student.parentsContact || "N/A",
+            isPresent: student.present?.toLowerCase() === "present",
+            timestamp: student.present?.toLowerCase() === "present" ? new Date().toLocaleString() : null
+        }));
+
+        setStudents(formattedData);
+    } catch (err) {
+        setStudents([]);  // Clear stale data
+        setError(err.message);
+    } finally {
+        setLoading(false);
+    }
+};
+
+    const markPresent = async (index) => {
         const updatedStudents = [...students];
         updatedStudents[index].isPresent = true;
         updatedStudents[index].timestamp = new Date().toLocaleString();
         setStudents(updatedStudents);
-    };
+        try {
+            const response = await fetch(API_URLS.POST_ATTENDANCE, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    studentId: updatedStudents[index].studentId,
+                    attendanceStatus: 'Present'
+                })
+            });
+            if (!response.ok) {
+                throw new Error("Failed to mark attendance on server");
+            }
+        } catch (err) {
+            setError(err.message);
+        }
+     };
+
 
     const resetAttendance = async () => {
         try {
-            const response = await fetch("https://script.google.com/macros/s/AKfycbxGQ-g1FhIX2fQrLYtx0RJPL3bsrv0Q2CzsARWB6XGTJKNd3JQTuXLvL2un7Vq1Ci9J/exec?markAllAbsent=true");
+            const response = await fetch("https://script.google.com/macros/s/AKfycbyejFHdZFbeNesOUiczYJG0ZRePjNy1FmKGTAxqknrihPptCNWY3EVCMYLpMK27SlHP/exec?markAllAbsent=true");
             if (!response.ok) {
                 throw new Error("Failed to reset attendance");
             }
@@ -114,7 +137,21 @@ function TeacherDashboard() {
                                         <td className="p-3">{student.studentId}</td>
                                         <td className="p-3">{student.studentName}</td>
                                         <td className="p-3">{student.parentName}</td>
-                                        <td className="p-3">{student.parentContact}</td>
+                                        <td className="p-3">
+    {student.parentContact ? (
+        <a 
+            href={`https://wa.me/${String(student.parentContact).replace(/\D/g, '')}`} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-blue-600 underline hover:text-blue-800"
+        >
+            {String(student.parentContact)}
+        </a>
+    ) : (
+        "N/A"
+    )}
+</td>
+
                                         <td className={`p-3 font-semibold ${student.isPresent ? "text-green-600" : "text-red-600"}`}>
                                             {student.isPresent ? `Present (${student.timestamp})` : "Absent"}
                                         </td>
