@@ -15,7 +15,8 @@ export default function LoginPage() {
 
     const credentials = {
       headmaster: { email: "headmaster@example.com", password: "headmaster123" },
-      teacher: { email: "teacher@example.com", password: "teacher123" }
+      teacher: { email: "teacher@example.com", password: "teacher123" },
+      parent:{email:"parent@example.com", password:"parents123"}
     };
 
     if (credentials[role] && email === credentials[role].email && password === credentials[role].password) {
