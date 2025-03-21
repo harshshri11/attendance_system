@@ -19,7 +19,7 @@ export default function LoginPage() {
       parent:{email:"parent@example.com", password:"parents123"}
     };
     console.log(role)
-    if (credentials[role] && email === credentials[role].email && password === credentials[role].password) {
+    if (credentials[role] && (role == parent ? email : contactNo) === credentials[role].email && password === credentials[role].password) {
       router.push(`/${role}`);
     } else {
       setError("Invalid email or password");
