@@ -18,7 +18,7 @@ export default function LoginPage() {
       teacher: { email: "teacher@example.com", password: "teacher123" },
       parent:{email:"parent@example.com", password:"parents123"}
     };
-
+    console.log(role)
     if (credentials[role] && email === credentials[role].email && password === credentials[role].password) {
       router.push(`/${role}`);
     } else {

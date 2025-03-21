@@ -2,13 +2,14 @@
 import { useState, useEffect } from "react";
 import BackButton from "../components/BackButton";
 import { API_URLS } from "@/constants";
+import { useRouter } from "next/navigation";
 function HeadmasterLogin() {
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [form, setForm] = useState({ studentId: "", studentName: "", parentName: "", parentContact: "" });
     const [isModalOpen, setIsModalOpen] = useState(false);
-
+    const router = useRouter()
     useEffect(() => {
         fetchStudents();
     }, []);
@@ -21,9 +22,8 @@ function HeadmasterLogin() {
                 throw new Error("Failed to fetch students");
             }
             const data = await response.json();
-            console.log(data);
-            if (Array.isArray(data)) {
-                const formattedData = data.map(student => ({
+            if (Array.isArray(data.data)) {
+                const formattedData = data.data.map(student => ({
                     studentId: student.studentId || "N/A",
                     studentName: student.name || "Unknown",
                     parentName: student.parentsName || "N/A",
@@ -73,7 +73,8 @@ function HeadmasterLogin() {
                     alert("Failed to add student: " + result.message);
                 }
             } catch (error) {
-                alert("Error adding student: " + error.message);
+                setIsModalOpen(false)
+                fetchStudents()
             }
         }
     };
