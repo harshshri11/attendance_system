@@ -145,18 +145,22 @@ function TeacherDashboard() {
                                         <td className="p-3">{student.studentName}</td>
                                         <td className="p-3">{student.parentName}</td>
                                         <td className="p-3">
-                                                {student.parentContact ? (
-                                                    <a 
-                                                        href={`https://wa.me/${String(student.parentContact).replace(/\D/g, '')}`} 
-                                                        target="_blank" 
-                                                        rel="noopener noreferrer"
-                                                        className="text-blue-600 underline hover:text-blue-800"
-                                                    >
-                                                        {String(student.parentContact)}
-                                                    </a>
-                                                ) : (
-                                                    "N/A"
-                                                )}
+                                        {student.parentContact ? (
+    <a 
+        href={`https://wa.me/${String(student.parentContact).replace(/\D/g, '')}?text=${encodeURIComponent(
+            `Dear ${student.parentName},\n\nYour child ${student.studentName} was marked *Absent* today (${selectedDate}).`
+        )}`}
+        target="_blank" 
+        rel="noopener noreferrer"
+        className="text-blue-600 underline hover:text-blue-800"
+    >
+        {String(student.parentContact)}
+    </a>
+) : (
+    "N/A"
+)}
+
+                                        
                                         </td>
                                         <td className={`p-3 font-semibold ${student.isPresent ? "text-green-600" : "text-red-600"}`}>
                                             {student.isPresent ? `Present ${student.timestamp}` : "Absent"}
