@@ -1,4 +1,4 @@
-Project deployed at - https://smart-attendance-system-git-master-juned-namajis-projects.vercel.app
+Project deployed at - https://attendance-system-git-main-harshs-projects-1dfd2afa.vercel.app/
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
 ## Getting Started
