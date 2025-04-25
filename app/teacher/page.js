@@ -12,90 +12,104 @@ function TeacherDashboard() {
     useEffect(() => {
         console.log("url", API_URLS.POST);
         fetchStudents(selectedDate);
-
     }, [selectedDate]);
 
     const fetchStudents = async (date) => {
         try {
             setLoading(true);
-            setError(null);  // Clear any previous errors
+            setError(null);
             const response = await fetch(`${API_URLS.GET}?date=${date}`);
-
+    
             if (!response.ok) {
                 throw new Error("Failed to fetch students");
             }
-
+    
             const data = await response.json();
-            console.log(data.data);
-
-            if (!Array.isArray(data.data) || data.data.some(student => typeof student !== 'object')) {
-                throw new Error("Received invalid student data");
-            }
-
-            const formattedData = data.data.map(student => ({
-                studentId: student.studentId || "N/A",
-                studentName: student.name || "Unknown",
-                parentName: student.parentsName || "N/A",
-                parentContact: student.parentsContact || "N/A",
-                isPresent: student.attendance?.toLowerCase() === "present",
-                timestamp: student.attendance?.toLowerCase() === "present" ? new Date().toLocaleString() : null
-            }));
-
+    
+            const formattedData = data.data.map(student => {
+                const localKey = `attendance-${student.studentId}-${date}`;
+                const savedTimestamp = localStorage.getItem(localKey);  // Get the saved timestamp
+                const isPresent = !!savedTimestamp;
+                const timestamp = savedTimestamp || null;
+    
+                return {
+                    studentId: student.studentId || "N/A",
+                    studentName: student.name || "Unknown",
+                    parentName: student.parentsName || "N/A",
+                    parentContact: student.parentsContact || "N/A",
+                    isPresent,
+                    timestamp
+                };
+            });
+    
             setStudents(formattedData);
         } catch (err) {
-            setStudents([]);  // Clear stale data
+            console.error("Error fetching students:", err.message);
             setError(err.message);
         } finally {
             setLoading(false);
         }
     };
-
+    
     const markPresent = async (index) => {
         const updatedStudents = [...students];
+        const timestamp = new Date().toLocaleString();  // Record the timestamp when the student is marked present
+    
         updatedStudents[index].isPresent = true;
-        updatedStudents[index].timestamp = new Date().toLocaleString();
+        updatedStudents[index].timestamp = timestamp;
+    
+        // Save the timestamp in localStorage to persist it across page refreshes
+        const localKey = `attendance-${updatedStudents[index].studentId}-${selectedDate}`;
+        localStorage.setItem(localKey, timestamp); // Only save when marking present
+    
         setStudents(updatedStudents);
+    
         try {
             const response = await fetch(API_URLS.POST, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                mode:"no-cors",
+                mode: "no-cors",
                 body: JSON.stringify({
                     studentId: updatedStudents[index].studentId,
                     attendanceStatus: 'Present'
                 })
             });
-            
-            console.log(response);
-            if (!response.ok) {
-                throw new Error("Failed to mark attendance on server");
-            }
+    
+            console.log("Mark present response:", response);
         } catch (err) {
-            
-            console.log(err.message);
+            console.log("Failed to mark on server:", err.message);
         }
-     };
-
-
+    };
+    
     const resetAttendance = async () => {
         try {
+            // Mark all students as absent in the backend
             const response = await fetch("https://script.google.com/macros/s/AKfycbyejFHdZFbeNesOUiczYJG0ZRePjNy1FmKGTAxqknrihPptCNWY3EVCMYLpMK27SlHP/exec?markAllAbsent=true");
             if (!response.ok) {
                 throw new Error("Failed to reset attendance");
             }
-            
-            const updatedStudents = students.map(student => ({
-                ...student,
-                isPresent: false,
-                timestamp: null
-            }));
+    
+            // Clear the attendance state and localStorage
+            const updatedStudents = students.map(student => {
+                const localKey = `attendance-${student.studentId}-${selectedDate}`;
+                localStorage.removeItem(localKey); // Remove the attendance entry from localStorage
+    
+                return {
+                    ...student,
+                    isPresent: false, // Set attendance to absent
+                    timestamp: null,  // Remove the timestamp
+                };
+            });
+    
+            // Update the students state to reflect the changes
             setStudents(updatedStudents);
         } catch (err) {
             setError(err.message);
         }
     };
+    
 
     return (
         <div className="flex flex-col min-h-screen items-center justify-start p-6 pt-20 bg-gray-100">
@@ -145,22 +159,20 @@ function TeacherDashboard() {
                                         <td className="p-3">{student.studentName}</td>
                                         <td className="p-3">{student.parentName}</td>
                                         <td className="p-3">
-                                        {student.parentContact ? (
-    <a 
-        href={`https://wa.me/${String(student.parentContact).replace(/\D/g, '')}?text=${encodeURIComponent(
-            `Dear ${student.parentName},\n\nYour child ${student.studentName} was marked *Absent* today (${selectedDate}).`
-        )}`}
-        target="_blank" 
-        rel="noopener noreferrer"
-        className="text-blue-600 underline hover:text-blue-800"
-    >
-        {String(student.parentContact)}
-    </a>
-) : (
-    "N/A"
-)}
-
-                                        
+                                            {student.parentContact ? (
+                                                <a 
+                                                    href={`https://wa.me/${String(student.parentContact).replace(/\D/g, '')}?text=${encodeURIComponent(
+                                                        `Dear ${student.parentName},\n\nYour child ${student.studentName} was marked *Absent* today (${selectedDate}).`
+                                                    )}`}
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className="text-blue-600 underline hover:text-blue-800"
+                                                >
+                                                    {String(student.parentContact)}
+                                                </a>
+                                            ) : (
+                                                "N/A"
+                                            )}
                                         </td>
                                         <td className={`p-3 font-semibold ${student.isPresent ? "text-green-600" : "text-red-600"}`}>
                                             {student.isPresent ? `Present ${student.timestamp}` : "Absent"}
